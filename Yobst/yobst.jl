@@ -85,7 +85,7 @@ function yobst_model(;
     EBIT = EBITDA .- T #fertig
     EBT = EBIT - Z #fertig
     BR = [sum(EBT[1:i]) for i in 1:N0] #fertig
-    AMOR = [sum(EBITDA[1:i]) - D0 for i in 1:N0]
+    AMOR = [sum(EBITDA[1:i]) - sum(Z[1:i]) - D0 for i in 1:N0]
 
     # hier gewünschte Größen ausgeben lassen
     return Dict(

@@ -50,9 +50,9 @@ begin
 	PersonalkostenPfalzbio__ = @bind PersonalkostenPfalzbio_ NumberField(0:1000:100000, default=10000)
 	WeitereKostenPfalzbio__ = @bind WeitereKostenPfalzbio_ NumberField(0:100:100000, default=0)
 	DurchschnittlicheContainerEntfernung__ = @bind DurchschnittlicheContainerEntfernung_ NumberField(0:1:100, default=20)
-	LieferungenProTag__ = @bind LieferungenProTag_ NumberField(0:1:5, default=1)
+	LieferungenProTag__ = @bind LieferungenProTag_ NumberField(0:1:5, default=2)
 	Kilometerpreis__ = @bind Kilometerpreis_ NumberField(0:0.01:2, default=0.2)
-	ProduktionskostenProM2ProJahr__ = @bind ProduktionskostenProM2ProJahr_ NumberField(0:100:20000, default=3000)
+	Bruttomarge__ = @bind Bruttomarge_ NumberField(0:0.01:5, default=0.60)
 
 	# Gemeinsam
 	AnzahlContainer__ = @bind AnzahlContainer_ NumberField(0:1:10000, default=1)
@@ -79,8 +79,8 @@ begin
 	Weitere Kosten (monatlich): $(WeitereKostenPfalzbio__) €\
 	Durchschnittliche Containerentfernung: $(DurchschnittlicheContainerEntfernung__) km\
 	Kilometerpreis: $(Kilometerpreis__) €/km\
-	Produktionskosten Pro m2 Pro Jahr: $(ProduktionskostenProM2ProJahr__) €/m2\
-	Leiferungen Pro Tag: $(LieferungenProTag__) Anzahl\
+	Bruttomarge (VK - EK) / VK: $(Bruttomarge__) Anteil\
+	Lieferungen Pro Tag: $(LieferungenProTag__) Anzahl\
 	
 	#### Gemeinsam
 	Anzahl Container: $(AnzahlContainer__) Anzahl \
@@ -108,7 +108,7 @@ md"### Yobst"
 md"### Pfalzbio"
 
 # ╔═╡ 60ed1c1b-e56c-40c2-b916-0f5480cc7057
-md"## Einkaufsanalyse"
+md"## Kunden-Einkaufsanalyse"
 
 # ╔═╡ 5bb8dc46-12ad-421a-8c9a-4ef3706f8644
 DataFrame(
@@ -139,16 +139,14 @@ ym = yobst_model(;
 )
 
 # ╔═╡ 3011ab39-d2d7-44eb-938c-16626b57fd85
-begin
-	DataFrame(
-		"Umsatz pro Jahr" => [sum(ym["Erlöse"][1:12]), sum(ym["Erlöse"][13:24])],
-		"Kosten pro Jahr" => [sum(ym["Kosten"][1:12]), sum(ym["Kosten"][13:24])],
-		"EBITDA pro Jahr" => [sum(ym["EBITDA"][1:12]), sum(ym["EBITDA"][13:24])],
-		"EBIT pro Jahr" => [sum(ym["EBIT"][1:12]), sum(ym["EBIT"][13:24])],
-		"EBT pro Jahr" => [sum(ym["EBT"][1:12]), sum(ym["EBT"][13:24])],
-		"EBT / Umsatz" => [sum(ym["EBT"][1:12]) / sum(ym["Erlöse"][1:12]), sum(ym["EBT"][13:24]) / sum(ym["Erlöse"][13:24])]
-	)
-end
+DataFrame(
+	"Umsatz pro Jahr" => [sum(ym["Erlöse"][1:12]), sum(ym["Erlöse"][13:24])],
+	"Kosten pro Jahr" => [sum(ym["Kosten"][1:12]), sum(ym["Kosten"][13:24])],
+	"EBITDA pro Jahr" => [sum(ym["EBITDA"][1:12]), sum(ym["EBITDA"][13:24])],
+	"EBIT pro Jahr" => [sum(ym["EBIT"][1:12]), sum(ym["EBIT"][13:24])],
+	"EBT pro Jahr" => [sum(ym["EBT"][1:12]), sum(ym["EBT"][13:24])],
+	"EBT / Umsatz" => [sum(ym["EBT"][1:12]) / sum(ym["Erlöse"][1:12]), sum(ym["EBT"][13:24]) / sum(ym["Erlöse"][13:24])]
+)
 
 # ╔═╡ 43a43bb3-348a-4365-8334-011abe8c6da9
 pm = pfalzbio_model(;
@@ -165,7 +163,7 @@ pm = pfalzbio_model(;
         Kilometerpreis_ = Kilometerpreis_,
         LieferungenProTag_ = LieferungenProTag_,
         UmsatzProM2ProJahr_ = UmsatzProM2ProJahr_, 
-        ProduktionskostenProM2ProJahr_ = ProduktionskostenProM2ProJahr_,
+        Bruttomarge_ = Bruttomarge_,
     )
 )
 
@@ -180,6 +178,30 @@ begin
 		"EBT / Umsatz" => [sum(pm["EBT"][1:12]) / sum(pm["Erlöse"][1:12]), sum(pm["EBT"][13:24]) / sum(pm["Erlöse"][13:24])]
 	)
 end
+
+# ╔═╡ b341ad3b-9672-4fc3-b42e-b8229542363a
+begin
+	ymamorindex = nothing
+	for i in 1:Abzahldauer_
+		if ym["AMOR"][i] > 0
+			ymamorindex = i
+			break
+		end
+	end
+	pmamorindex = nothing
+	for i in 1:Abzahldauer_
+		if pm["AMOR"][i] > 0
+			pmamorindex = i
+			break
+		end
+	end
+end
+
+# ╔═╡ e9a224cf-5842-4c3b-a238-04df7f935a03
+md"Investamortization nach $(ymamorindex) Monaten."
+
+# ╔═╡ f82cd546-7f3c-4858-9bb9-f6fe223d9181
+md"Investamortization nach $(pmamorindex) Monaten."
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2011,12 +2033,15 @@ version = "1.4.1+0"
 # ╟─52d7c112-9cfb-4a1e-bedd-e46950a32a94
 # ╟─d2466b97-edb2-4b81-b6bc-f6eb19264c50
 # ╟─3011ab39-d2d7-44eb-938c-16626b57fd85
+# ╟─e9a224cf-5842-4c3b-a238-04df7f935a03
 # ╟─d0ecbf7d-563b-4bbb-91b2-43c9ea714c1f
 # ╟─33608eaf-2fa2-43fb-a0f3-9f7012e525a3
+# ╟─f82cd546-7f3c-4858-9bb9-f6fe223d9181
 # ╟─60ed1c1b-e56c-40c2-b916-0f5480cc7057
 # ╟─5bb8dc46-12ad-421a-8c9a-4ef3706f8644
-# ╠═2e826f53-9c6d-409b-9de5-f72cbcd0f78c
+# ╟─2e826f53-9c6d-409b-9de5-f72cbcd0f78c
 # ╟─61ab2bdc-63df-4b84-8780-96253c9000fb
 # ╟─43a43bb3-348a-4365-8334-011abe8c6da9
+# ╟─b341ad3b-9672-4fc3-b42e-b8229542363a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

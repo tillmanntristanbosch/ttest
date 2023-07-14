@@ -12,7 +12,7 @@ function pfalzbio_model(;
         Kilometerpreis_ = nothing,
         LieferungenProTag_ = nothing,
         UmsatzProM2ProJahr_ = nothing, 
-        ProduktionskostenProM2ProJahr_ = nothing,
+        Bruttomarge_ = nothing, # Bruttomarge = (VK - EK) / VK, in Worten: Gewinn durch Umsatz, dh das Verhältnis von Gewinn zu Umsatz
     )
 )
     ### ACHTUNG ###
@@ -50,17 +50,24 @@ function pfalzbio_model(;
     Erlös_BERND = AnzahlContainer_BERND * UmsatzProContainer_BERND * Umsatzbeteiligung_BERND
 
     # Errechnung von Kosten
-    ProduktionskostenProContainer_BERND = ProduktionskostenProM2ProJahr_BERND * 25 / 12
+    ProduktionskostenProContainer_BERND = UmsatzProContainer_BERND * (1 - Bruttomarge_BERND)
     Produktionskosten_BERND = ProduktionskostenProContainer_BERND * AnzahlContainer_BERND
+    
+    PalettenAmTag_BERND = AnzahlContainer_BERND * 1 * LieferungenProTag_BERND # Eine Palette pro Containerbefüllung
+    Kommissionskosten_BERND = 2/60 * 160 * 27 * PalettenAmTag_BERND * 30 # 2min pro Kiste * 160 Kisten pro Palette * 27€ pro Stunde * Paletten Pro Monat
+
+    AnzahlAutos_BERND = AnzahlContainer_BERND / 4
+    Fahrerkosten_BERND = AnzahlAutos_BERND * 2 * 27 * 172 # 27€/h Vollzeit 160h pro Monat
     Transportkosten_BERND = DurchschnittlicheContainerEntfernung_BERND * Kilometerpreis_BERND * AnzahlContainer_BERND * LieferungenProTag_BERND
-    Investment_BERND = AnzahlContainer_BERND * 9000 # Kosten für Transportfahrzeuge
-    D0_BERND = Investment_BERND
+    
+    AutoInvestment_BERND = AnzahlAutos_BERND * 9000 # Kosten für Transportfahrzeuge
+    D0_BERND = AutoInvestment_BERND # einziges Invest sind die Autos, also D0 = Autoinvest
 
     # Erlöse/Kosten
-    In_BERND = vcat([Investment_BERND],[0 for _ in 2:N0]) # Investmentkosten, nur in der ersten Periode
-    Pe_BERND = [Personalkosten_BERND for _ in 1:N0] # Personalkosten
+    In_BERND = vcat([AutoInvestment_BERND],[0 for _ in 2:N0]) # Investmentkosten, nur in der ersten Periode
+    Pe_BERND = [Kommissionskosten_BERND for _ in 1:N0] # Personalkosten
     Ma_BERND = [Produktionskosten_BERND for _ in 1:N0] # Materialkosten
-    Be_BERND = [Transportkosten_BERND + WeitereKosten_BERND for _ in 1:N0] # Betriebskosten
+    Be_BERND = [Transportkosten_BERND + WeitereKosten_BERND + Fahrerkosten_BERND for _ in 1:N0] # Betriebskosten
     Ve_BERND = [0 for _ in 1:N0] # Vertriebskosten
     K_BERND = In_BERND + Pe_BERND + Ma_BERND + Be_BERND + Ve_BERND #fix
     E_BERND = [Erlös_BERND for _ in 1:N0] + vcat([D0_BERND], [0 for _ in 2:N0]) # Erlöse mit Darlehen als Startguthaben
@@ -83,7 +90,7 @@ function pfalzbio_model(;
     EBIT_BERND = EBITDA_BERND .- T_BERND #fertig
     EBT_BERND = EBIT_BERND - Z_BERND #fertig
     BR_BERND = [sum(EBT_BERND[1:i]) for i in 1:N0] #fertig
-    AMOR_BERND = [sum(EBITDA_BERND[1:i]) - D0_BERND for i in 1:N0] #fertig
+    AMOR_BERND = [sum(EBITDA_BERND[1:i]) - sum(Z_BERND[1:i]) - D0_BERND for i in 1:N0] #fertig
 
     # hier gewünschte Größen ausgeben lassen
     return Dict(
